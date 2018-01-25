@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#create an RSA key pair with an empty password
+
+
+read -e -p "please enter RSA password(enter will be default)" pwd 
+
+ssh-keygen -t rsa -P "$pwd"
+
+#enable SSH access to your local machine
+
+
+cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys
+
+read -p "=================disable IPv6 ================"
+
+sudo chmod 777  /etc/sysctl.conf
+
+
+vim  /etc/sysctl.conf
+
+
+
+
+
+
+
+
+
+

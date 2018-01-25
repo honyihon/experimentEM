@@ -1,0 +1,94 @@
+#!/bin/bash 
+#test script 
+#set variable
+read -e -p "key in the path for orginal Enlish corpus " orginal_en 
+read -e -p "key in the path for orginal French corpus " orginal_fr
+read -e -p "key in the clean lowbound " lowbound
+read -e -p "key in the clean upbound  " upbound
+
+#Tokenisation#########################################################
+$HOME/mosesdecoder/scripts/tokenizer/tokenizer.perl -l en < $orginal_en  > $HOME/corpus/tok.en
+
+tok_en='$HOME/corpus/tok.en'
+
+$HOME/mosesdecoder/scripts/tokenizer/tokenizer.perl -l fr < $orginal_fr > $HOME/corpus/tok.fr
+
+tok_fr='$HOME/corpus/tok.fr'
+
+
+#Truecase_model#########################################################
+$HOME/mosesdecoder/scripts/recaser/train-truecaser.perl --model $HOME/corpus/truecase-model.en --corpus $tok_en 
+
+truecase_model_en='$HOME/corpus/truecase-model.en'
+
+$HOME/mosesdecoder/scripts/recaser/train-truecaser.perl --model $HOME/corpus/truecase-model.fr --corpus $tok_fr 
+
+truecase_model_fr='$HOME/corpus/truecase-model.fr'
+
+#TrueCase######################################################
+$HOME/mosesdecoder/scripts/recaser/truecase.perl --model $truecase_model_en < $tok_en > $HOME/corpus/true.en
+
+true_en='$HOME/corpus/true.en'
+
+$HOME/mosesdecoder/scripts/recaser/truecase.perl --model $truecase_model_fr < $tok_fr > $HOME/corpus/true.fr
+
+true_fr='$HOME/corpus/true.fr'
+
+
+#Clean########Lowbound & Upbound#####################################
+$HOME/mosesdecoder/scripts/training/clean-corpus-n.perl $HOME/corpus/true fr en  $HOME/corpus/clean $lowbound $upbound 
+
+clean_en='$HOME/corpus/clean.en'
+
+
+clean_fr='$HOME/corpus/clean.en'
+
+
+#LM#################################################################
+mkdir $HOME/lm
+cd $HOME/lm
+
+$HOME/irstlm/bin/add-start-end.sh  < $true_en > $HOME/lm/sb.en
+sb_en='$HOME/lm/sb.en'
+
+export IRSTLM=$HOME/irstlm; $HOME/irstlm/bin/build-lm.sh -i  $sb_en  -t ./tmp  -p -s improved-kneser-ney -o lm.en
+
+$HOME/irstlm/bin/compile-lm --text yes lm.en.gz arpa.en
+
+$HOME/mosesdecoder/bin/build_binary  arpa.en  blm.en
+
+mkdir $HOME/working
+cd $HOME/working
+
+$HOME/mosesdecoder/scripts/training/train-model.perl  -root-dir train -corpus $HOME/corpus/clean -f fr -e en -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:$HOME/lm/blm.en:8 -external-bin-dir $HOME/mosesdecoder/tools > training.out 
+
+mkdir $HOME/working/binarised-model
+cd $HOME/working
+
+$HOME/mosesdecoder/bin/processPhraseTable -ttable 0 0 train/model/phrase-table.gz -nscores 5 -out binarised-model/phrase-table
+
+$HOME/mosesdecoder/bin/processLexicalTable -in train/model/reordering-table.wbe-msd-bidirectional-fe.gz -out binarised-model/reordering-table
+
+cp -r ./train/model/moses.ini ./binarised-model/
+
+sed 's/0 0 0 5/1 0 0 5/g' $HOME/working/binarised-model/moses.ini |sed 's/train\/model\/phrase-table.gz/binarised-model\/phrase-table/g' |sed 's/train\/model\/reordering-table.wbe-msd.bidirectional-fe.gz/binarised-model\/reordering-table/g'>$HOME/working/binarised-model/moses1.ini
+
+mv $HOME/working/binarised-model/moses1.ini $HOME/working/binarised-model/moses.ini
+
+#Decoder##################################################################
+$HOME/mosesdecoder/bin/moses -f $HOME/working/binarised-model/moses.ini < $true_fr > $HOME/corpus/translated.en 2> $HOME/corpus/translated.out 
+
+
+#wc -l ######################################################################
+#while true
+#do 
+#wc -l $HOME/corpus/translated.en
+#sleep 20
+#done
+
+
+#Bleu Score############################################################
+$HOME/mosesdecoder/scripts/generic/multi-bleu.perl -lc $HOME/corpus/true.en < $HOME/corpus/translated.en
+
+
+

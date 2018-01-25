@@ -1,0 +1,62 @@
+#!/bin/bash 
+#test script 
+#set variable
+##read -e -p "key in the path for orginal Enlish corpus " orginal_en 
+##read -e -p "key in the path for orginal French corpus " orginal_fr
+##read -e -p "key in the clean lowbound " lowbound
+##read -e -p "key in the clean upbound  " upbound
+read -e -p "key in the testing true.en:" test_true_en
+read -e -p "key in the testing true.fr:" test_true_fr
+read -e -p "key in the true_en:" true_en
+read -e -p "key in the clean floder(ex:./europarl_clean_1-9000) " clean_folder
+
+##true_en='/home/hadoop/corpus_wei/europarl_clean_1-9000.en'
+#LM#################################################################
+mkdir /home/hadoop/corpus
+mkdir /home/hadoop/lm
+cd /home/hadoop/lm
+
+/home/hadoop/irstlm/bin/add-start-end.sh  < $true_en > /home/hadoop/lm/sb.en
+sb_en='/home/hadoop/lm/sb.en'
+
+export IRSTLM=/home/hadoop/irstlm; /home/hadoop/irstlm/bin/build-lm.sh -i  $sb_en  -t ./tmp  -p -s improved-kneser-ney -o lm.en
+
+/home/hadoop/irstlm/bin/compile-lm --text yes lm.en.gz arpa.en
+
+/home/hadoop/mosesdecoder/bin/build_binary  arpa.en  blm.en
+
+mkdir /home/hadoop/working
+cd /home/hadoop/working
+
+/home/hadoop/mosesdecoder/scripts/training/train-model.perl  -root-dir train -corpus $clean_folder -f fr -e en -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:/home/hadoop/lm/blm.en:8 -external-bin-dir /home/hadoop/mosesdecoder/tools > training.out 
+
+mkdir /home/hadoop/working/binarised-model
+cd /home/hadoop/working
+
+/home/hadoop/mosesdecoder/bin/processPhraseTable -ttable 0 0 train/model/phrase-table.gz -nscores 5 -out binarised-model/phrase-table
+
+/home/hadoop/mosesdecoder/bin/processLexicalTable -in train/model/reordering-table.wbe-msd-bidirectional-fe.gz -out binarised-model/reordering-table
+
+cp -r ./train/model/moses.ini ./binarised-model/
+
+sed 's/0 0 0 5/1 0 0 5/g' /home/hadoop/working/binarised-model/moses.ini |sed 's/train\/model\/phrase-table.gz/binarised-model\/phrase-table/g' |sed 's/train\/model\/reordering-table.wbe-msd.bidirectional-fe.gz/binarised-model\/reordering-table/g'>/home/hadoop/working/binarised-model/moses1.ini
+
+mv /home/hadoop/working/binarised-model/moses1.ini /home/hadoop/working/binarised-model/moses.ini
+
+#Decoder##################################################################
+/home/hadoop/mosesdecoder/bin/moses -f /home/hadoop/working/binarised-model/moses.ini < $test_true_fr > /home/hadoop/corpus/translated.en 2> /home/hadoop/corpus/translated.out 
+
+
+#wc -l ######################################################################
+#while true
+#do 
+#wc -l /home/hadoop/corpus/translated.en
+#sleep 20
+#done
+
+
+#Bleu Score############################################################
+/home/hadoop/mosesdecoder/scripts/generic/multi-bleu.perl -lc $test_true_en < /home/hadoop/corpus/translated.en
+
+
+

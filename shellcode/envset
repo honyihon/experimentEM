@@ -1,0 +1,2 @@
+#!/bin/bash
+export SBS="/home/hadoop/seg/best_seg/dev.seg_europarl_clean_1-9000.en_len4"

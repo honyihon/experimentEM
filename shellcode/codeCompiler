@@ -1,0 +1,11 @@
+#!/bin/bash
+##read -e -p "key in the compile data path:" compile_data_path
+read -e -p "key in the compile data name:" compile_data
+cd
+cp $compile_data  mosesdecoder/phrase-extract/
+cd /home/hadoop/mosesdecoder/phrase-extract/
+rm extract-main.cpp
+mv $compile_data extract-main.cpp
+cd /home/hadoop/mosesdecoder/
+./bjam -j2 --with-irstlm=$HOME/irstlm --with-giza=$HOME/giza-pp
+

@@ -1,0 +1,74 @@
+#!/bin/bash
+
+read -e -p "enter the hadoop account:" hduser
+read -e -p "enter the hadoop group name:" hadoop
+cat /proc/sys/net/ipv6/conf/all/disable_ipv6 #check ipv6 whether enable or not
+
+#download hadoop
+
+read -p " ============press download hadoop 1.2.0 =================="
+wget apache.cdpa.nsysu.edu.tw/hadoop/common/hadoop-1.2.0/hadoop-1.2.0.tar.gz
+
+read -p "============ press and continue============================="
+sudo tar zxvf hadoop-1.2.0.tar.gz
+
+
+sudo mv hadoop-1.2.0 hadoop
+
+sudo mv hadoop /usr/local/ #將資料夾搬到/usr/local/之下
+
+cd /usr/local
+
+sudo chown -R $hduser:$hadoop hadoop  #Make sure to change the owner of all the files to the hduser user and hadoop group
+
+
+
+vim  $HOME/.bashrc
+
+read -p "================press to next step==================="
+
+sudo chmod 777 /usr/local/hadoop/conf/hadoop-env.sh
+vim  /usr/local/hadoop/conf/hadoop-env.sh
+
+read -p "================press to next step==================="
+
+#source /usr/local/hadoop/conf/hadoop-env.sh 
+sudo mkdir -p /app/hadoop/tmp
+sudo chown $hduser:$hadoop /app/hadoop/tmp
+
+cd /usr/local/hadoop/
+
+
+  
+
+cd conf
+
+sudo chmod 777 core-site.xml
+vim  core-site.xml
+
+read -p "================press to next step==================="
+sudo chmod 777 hdfs-site.xml
+ vim  hdfs-site.xml
+ read -p "================press to next step==================="
+
+sudo chmod 777 mapred-site.xml    
+ vim  mapred-site.xml
+  
+ read -p "=============格式化HDFS=================="
+  
+ cd
+  
+  
+ source /usr/local/hadoop/conf/hadoop-env.sh  
+/usr/local/hadoop/bin/hadoop namenode -format 
+ 
+read -p "=============啟動Hadoop=================="
+
+cd /usr/local/hadoop
+
+cd bin
+
+start-all.sh
+
+  
+  

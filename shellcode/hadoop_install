@@ -1,0 +1,32 @@
+#!/bin/bash
+
+sudo apt-get install python-software-properties
+sudo add-apt-repository ppa:ferramroberto/java
+
+#Update the source list
+sudo apt-get update
+
+# Install Sun Java 6 JDK
+ sudo apt-get install openjdk-7-jdk
+
+# Select Sun's Java as the default on your machine.
+# See 'sudo update-alternatives --config java' for more information.
+#
+#sudo update-java-alternatives -s java--sun
+
+read -p "press enter and continue check JDK installation"
+
+#check Jdk Installation
+
+java -version
+
+read -e -p "enter the hadoop account:" hduser
+read -e -p "enter the hadoop group name:" hadoop
+
+#adding the hadoop account(could be computer account)
+#This will add the user hduser and the group hadoop to your local machine.
+
+sudo addgroup $hadoop
+sudo adduser --ingroup hadoop $hduser
+
+su - $hduser
