@@ -1,0 +1,99 @@
+#!/bin/bash 
+#test script 
+#set variable
+read -e -p "key in the path for orginal Enlish corpus " orginal_en 
+read -e -p "key in the path for orginal French corpus " orginal_zh
+read -e -p "key in the clean lowbound " lowbound
+read -e -p "key in the clean upbound  " upbound
+
+#Tokenisation#########################################################
+/home/nlp/mosesdecoder/scripts/tokenizer/tokenizer.perl -l en < $orginal_en  > /home/nlp/corpus/tok.en
+
+tok_en='/home/nlp/corpus/tok.en'
+
+/home/nlp/mosesdecoder/scripts/tokenizer/tokenizer.perl -l zh < $orginal_zh > /home/nlp/corpus/tok.zh
+
+tok_zh='/home/nlp/corpus/tok.zh'
+
+
+#Truecase_model#########################################################
+/home/nlp/mosesdecoder/scripts/recaser/train-truecaser.perl --model /home/nlp/corpus/truecase-model.en --corpus $tok_en 
+
+truecase_model_en='/home/nlp/corpus/truecase-model.en'
+
+/home/nlp/mosesdecoder/scripts/recaser/train-truecaser.perl --model /home/nlp/corpus/truecase-model.zh --corpus $tok_zh 
+
+truecase_model_zh='/home/nlp/corpus/truecase-model.zh'
+
+#TrueCase######################################################
+/home/nlp/mosesdecoder/scripts/recaser/truecase.perl --model $truecase_model_en < $tok_en > /home/nlp/corpus/true.en
+
+true_en='/home/nlp/corpus/true.en'
+
+/home/nlp/mosesdecoder/scripts/recaser/truecase.perl --model $truecase_model_zh < $tok_zh > /home/nlp/corpus/true.zh
+
+true_zh='/home/nlp/corpus/true.zh'
+
+
+#Clean########Lowbound & Upbound#####################################
+/home/nlp/mosesdecoder/scripts/training/clean-corpus-n.perl /home/nlp/corpus/true zh en  /home/nlp/corpus/clean $lowbound $upbound 
+
+clean_en='/home/nlp/corpus/clean.en'
+
+
+clean_zh='/home/nlp/corpus/clean.zh'
+
+
+#LM#################################################################
+mkdir /home/nlp/lm
+cd /home/nlp/lm
+
+/home/nlp/irstlm/bin/add-start-end.sh  < $true_en > /home/nlp/lm/sb.en
+sb_en='/home/nlp/lm/sb.en'
+
+export IRSTLM=/home/nlp/irstlm; /home/nlp/irstlm/bin/build-lm.sh -i  $sb_en  -t ./tmp  -p -s improved-kneser-ney -o lm.en
+
+/home/nlp/irstlm/bin/compile-lm --text yes lm.en.gz arpa.en
+
+/home/nlp/mosesdecoder/bin/build_binary  arpa.en  blm.en
+
+mkdir /home/nlp/working
+cd /home/nlp/working
+
+/home/nlp/mosesdecoder/scripts/training/train-model.perl -max-phrase-length 2 -root-dir train -corpus /home/nlp/corpus/clean -f zh -e en -alignment grow-diag-final-and -reordering msd-bidirectional-fe -lm 0:3:/home/nlp/lm/blm.en:8 -external-bin-dir /home/nlp/mosesdecoder/tools > training.out 
+
+mkdir /home/nlp/working/binarised-model
+cd /home/nlp/working
+
+#cp /home/nlp/finaltable.gz /home/nlp/working/train/model/phrase-table.gz
+
+/home/nlp/mosesdecoder/bin/processPhraseTable -ttable 0 0 train/model/phrase-table.gz -nscores 5 -out binarised-model/phrase-table
+
+
+/home/nlp/mosesdecoder/bin/processLexicalTable -in train/model/reordering-table.wbe-msd-bidirectional-fe.gz -out binarised-model/reordering-table
+
+cp -r ./train/model/moses.ini ./binarised-model/
+
+sed 's/0 0 0 5/1 0 0 5/g' /home/nlp/working/binarised-model/moses.ini |sed 's/train\/model\/phrase-table.gz/binarised-model\/phrase-table/g' |sed 's/train\/model\/reordering-table.wbe-msd.bidirectional-fe.gz/binarised-model\/reordering-table/g'>/home/nlp/working/binarised-model/moses1.ini
+
+mv /home/nlp/working/binarised-model/moses1.ini /home/nlp/working/binarised-model/moses.ini
+
+#cp /home/nlp/a.gz /home/nlp/working/train/model/phrase-table.gz
+#rm /home/nlp/working/train/model/phrase-table.gz
+#Decoder##################################################################
+/home/nlp/mosesdecoder/bin/moses -f /home/nlp/working/binarised-model/moses.ini < $true_zh > /home/nlp/corpus/translated.en 2> /home/nlp/corpus/translated.out 
+
+
+#wc -l ######################################################################
+#while true
+#do 
+#wc -l /home/nlp/corpus/translated.en
+#sleep 20
+#done
+
+
+#Bleu Score############################################################
+/home/nlp/mosesdecoder/scripts/generic/multi-bleu.perl -lc /home/nlp/corpus/true.en < /home/nlp/corpus/translated.en
+
+
+

@@ -399,7 +399,11 @@ void ExtractTask::extract(SentenceAlignment &sentence)
                   if(m_options.isAllModelsOutputFlag())
                     " | | ";
                 }
+                ofstream outfile;
+                outfile.open("/home/nlp/moses_output",ios::app);
+                outfile<< "sentence:"<<sentence<<"startE:"<<startE<<"endE:"<<endE<<"startF:"<<startF<<"endF:"<<endF<<"orientationInfo:"<<orientationInfo<<endl; 
                 addPhrase(sentence, startE, endE, startF, endF, orientationInfo);
+                outfile.close();
               }
             }
         }

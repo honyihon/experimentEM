@@ -1,0 +1,38 @@
+#!/bin/bash
+###system toolkit prepare
+sudo apt-get install libboost-all-dev
+sudo apt-get install automake
+sudo apt-get install libtool
+read -p "please enter and continue"
+#####giza++ install
+wget http://giza-pp.googlecode.com/files/giza-pp-v1.0.7.tar.gz
+ tar xzvf giza-pp-v1.0.7.tar.gz
+ cd ~/giza-pp
+ make
+#create giza++
+cd ~/mosesdecoder
+ mkdir tools
+ cp ~/giza-pp/GIZA++-v2/GIZA++ ~/giza-pp/GIZA++-v2/snt2cooc.out ~/giza-pp/mkcls-v2/mkcls tools
+
+#install irstlm
+
+cd 
+tar zxvf irstlm-5.80.01.tgz
+ mv irstlm-5.80.01/ irstlm/
+ cd ~/irstlm
+ ./regenerate-makefiles.sh
+ ./configure --prefix=$HOME/irstlm
+ make install
+#corpus preparation
+
+cd
+ mkdir corpus
+ cd corpus 
+
+#moses build
+cd
+cd ~/mosesdecoder
+
+./bjam -j2 --with-irstlm=$HOME/irstlm --with-giza=$HOME/giza-pp 
+
+
